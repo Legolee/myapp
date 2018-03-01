@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>canvas绘图演示</title>
+    <style type="text/css">
+        #canvas{
+            border: 1px solid #ADACB0;
+            display: block;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="300" height="300">
+        你的浏览器还不支持canvas
+    </canvas>
+</body>
+<script type="text/javascript">
+        var canvas = document.getElementById("canvas");
+    var context = canvas.getContext("2d");
+    //设置对象起始点和终点
+    context.beginPath();
+    context.moveTo(100,100);
+    context.lineTo(700,100);
+    context.lineTo(700,400);
+    context.lineWidth = 2;
+    context.strokeStyle = "#F5270B";
+    //绘制
+    context.stroke();
+
+    context.beginPath();
+    context.moveTo(100,200);//这里的moveTo换成lineTo效果是一样的
+    context.lineTo(600,200);
+    context.lineTo(600,400);
+    //strokeStyle的颜色有新的值，则覆盖上面设置的值
+    //lineWidth没有新的值，则按上面设置的值显示
+    context.strokeStyle = "#0D25F6";
+    //绘制
+    context.stroke();
+
+    //使用rect方法
+    context.rect(10,10,100,100);
+    context.lineWidth = 2;
+    context.fillStyle = "#3EE4CB";
+    context.strokeStyle = "#F5270B";
+    context.fill();
+    context.stroke();
+
+    //使用fillRect方法
+    context.fillStyle = "#1424DE";
+    context.fillRect(210,10,190,190);
+
+    //使用strokeRect方法
+    context.strokeStyle = "#F5270B";
+    context.strokeRect(410,10,190,190);
+
+</script>
+</html>
