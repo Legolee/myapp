@@ -4,10 +4,20 @@
     </head>    
         <body>               
             <input id="fileInput" type="file" onchange="processFiles()"/>  
-            <br>  
+            <br><br>
+            <button type="button" onclick="draw1(number)">左斜体</button>
+            <button type="button" onclick="draw2(number)">耸肩体</button>
+            <button type="button" onclick="draw3(number)">比例变换</button>
+            <button type="button" onclick="draw4(number)">旋转变换</button>
+            <button type="button" onclick="draw5(number)">对称变换</button>
+            <button type="button" onclick="draw6(number)">平移变换</button>
+            <br><br>
+            <button type="button" onclick="clear()">清空</button>
+            <br>
             <canvas id="myCanvas" width="1000" height="600" style="border:1px solid #c3c3c3">your browser does not support the canvas tag </canvas>  
               
             <script>    
+            var number = new Array();
                 function processFiles(){  
                     var file=document.getElementById("fileInput").files[0];  
                     var reader=new FileReader();  
@@ -15,9 +25,8 @@
                     reader.onload=function(e)  
                     {  
                         var str = this.result;//读取文本  
-                        var number = new Array();  
                         number= digitalExtraction(str,number);//提取数字并存入数组  
-                        draw(number);//画图  
+                        //draw(number);//画图  
                     }  
                       
                 }  
@@ -51,13 +60,16 @@
                         }  
                          character=heap[++flag];  
                     }  
-                     
                     return number;  
                }  
+               function clear(){
+                var cxt=document.getElementById("myCanvas").getContext("2d");
+                cxt.clear(0,0,c.width,c.height);
+               }
                function draw(number){  
                     var canvas=document.getElementById('myCanvas');  
                       
-                    var cxt=canvas.getContext('2d');   
+                    var cxt=canvas.getContext('2d');
                     var n= number.length;  
                     number[n]=-1;  
                     var n= number.length;  
@@ -69,7 +81,7 @@
                     for(var i=1,j=0;i<n;i++){  
                         if(number[i]!=-1){  
                             x[j]=number[i]*10;  
-                            y[j]=number[++i]*10;  
+                            y[j]=number[++i]*10;
                             j++;  
                         }else{  
                             cxt.moveTo(x[0],y[0]);  
@@ -80,10 +92,168 @@
                             j=0;  
                         }  
                     }  
-                      
-  
                }  
-              
+               function draw1(number){  
+                    var canvas=document.getElementById('myCanvas');  
+                      
+                    var cxt=canvas.getContext('2d');
+                    var n= number.length;  
+                    number[n]=-1;  
+                    var n= number.length;  
+  
+                   var flag=0;  
+                   var x= new Array();  
+                   var y =new Array();  
+                   var j=0;  
+                    for(var i=1,j=0;i<n;i++){  
+                        if(number[i]!=-1){  
+                            x[j]=number[i]*10;  
+                            y[j]=number[++i]*10;
+                            x[j]=x[j]+y[j]/3.732;
+                            j++;  
+                        }else{  
+                            cxt.moveTo(x[0],y[0]);  
+                            for(var k=1;k<j;k++){  
+                                cxt.lineTo(x[k],y[k]);  
+                            }  
+                            cxt.stroke();  
+                            j=0;  
+                        }  
+                    }  
+               }  
+               function draw2(number){  
+                    var canvas=document.getElementById('myCanvas');  
+                    var cxt=canvas.getContext('2d');
+                    var n= number.length;  
+                    number[n]=-1;  
+                    var n= number.length;  
+  
+                   var flag=0;  
+                   var x= new Array();  
+                   var y =new Array();  
+                   var j=0;  
+                    for(var i=1,j=0;i<n;i++){  
+                        if(number[i]!=-1){  
+                            x[j]=number[i]*10;  
+                            y[j]=number[++i]*10;
+                            y[j]=y[j]+x[j]*0.267949;
+                            j++;  
+                        }else{  
+                            cxt.moveTo(x[0],y[0]);  
+                            for(var k=1;k<j;k++){  
+                                cxt.lineTo(x[k],y[k]);  
+                            }  
+                            cxt.stroke();  
+                            j=0;  
+                        }  
+                    }  
+               } 
+               function draw3(number){
+                   var canvas=document.getElementById('myCanvas');  
+                   var cxt=canvas.getContext('2d');
+                   cxt.scale(2,2);
+                   var n= number.length;
+                   number[n]=-1;
+                   var n= number.length;
+                   var flag=0;
+                   var x= new Array();
+                   var y =new Array();
+                   var j=0;
+                   for(var i=1,j=0;i<n;i++){  
+                          if(number[i]!=-1){  
+                              x[j]=number[i]*10;  
+                              y[j]=number[++i]*10;
+                              j++;  
+                          }else{  
+                              cxt.moveTo(x[0],y[0]);  
+                              for(var k=1;k<j;k++){  
+                                  cxt.lineTo(x[k],y[k]);  
+                              }  
+                              cxt.stroke();  
+                              j=0;  
+                          }  
+                      }  
+               } 
+               function draw4(number){
+                   var canvas=document.getElementById('myCanvas');  
+                   var cxt=canvas.getContext('2d');
+                   cxt.rotate(60*Math.PI/180);
+                   var n= number.length;
+                   number[n]=-1;
+                   var n= number.length;
+                   var flag=0;
+                   var x= new Array();
+                   var y =new Array();
+                   var j=0;
+                   for(var i=1,j=0;i<n;i++){  
+                          if(number[i]!=-1){  
+                              x[j]=number[i]*10;  
+                              y[j]=number[++i]*10;
+                              j++;  
+                          }else{  
+                              cxt.moveTo(x[0],y[0]);  
+                              for(var k=1;k<j;k++){  
+                                  cxt.lineTo(x[k],y[k]);  
+                              }  
+                              cxt.stroke();  
+                              j=0;  
+                          }  
+                      }  
+                      
+               }
+               function draw5(number){
+
+                   var canvas=document.getElementById('myCanvas');  
+                   var cxt=canvas.getContext('2d');
+                   var n= number.length;
+                   number[n]=-1;
+                   var n= number.length;
+                   var flag=0;
+                   var x= new Array();
+                   var y =new Array();
+                   var j=0;
+                   for(var i=1,j=0;i<n;i++){  
+                          if(number[i]!=-1){  
+                              x[j]=number[i]*10;  
+                              y[j]=number[++i]*10;
+                              j++;  
+                          }else{  
+                              cxt.moveTo(x[0],y[0]);  
+                              for(var k=1;k<j;k++){  
+                                  cxt.lineTo(x[k],y[k]);  
+                              }  
+                              cxt.stroke();  
+                              j=0;  
+                          }  
+                      }  
+               }
+               function draw6(number){
+                   var canvas=document.getElementById('myCanvas');  
+                   var cxt=canvas.getContext('2d');
+                   cxt.translate(10,5);
+                   var n= number.length;
+                   number[n]=-1;
+                   var n= number.length;
+                   var flag=0;
+                   var x= new Array();
+                   var y =new Array();
+                   var j=0;
+                   
+                   for(var i=1,j=0;i<n;i++){  
+                          if(number[i]!=-1){  
+                              x[j]=number[i]*10;  
+                              y[j]=number[++i]*10;
+                              j++;  
+                          }else{  
+                              cxt.moveTo(x[0],y[0]);  
+                              for(var k=1;k<j;k++){  
+                                  cxt.lineTo(x[k],y[k]);  
+                              }  
+                              cxt.stroke();  
+                              j=0;  
+                          }  
+                      }
+               }
             </script>     
         </body>    
 </html>   
