@@ -101,10 +101,8 @@ function BJ(){
             var l=A[i].length;
             for(j=0;j<l-1;j++)
             {
-                 
                 cxt.moveTo((A[i][j].x)*10-500,600-(A[i][j].y)*10);
                 cxt.lineTo((A[i][j+1].x)*10-500,600-(A[i][j+1].y)*10);
-                
             }
         }
         cxt.stroke();
@@ -209,22 +207,22 @@ function grid5() {//绘制世界版图墨卡托投影格网，间距为5度
     var q = 0;
     var y1 = 210;
     var y2 = 210;
-    for (i = 1; i < 17; i++) {
-        z = z + 5;
+    for (i = 1; i < 10; i++) {
+        z = z + 10;
         y1 =y1 - 30 * Math.sin(z * Math.PI / 180);
         cxt.moveTo(100, y1);
         cxt.lineTo(500, y1);
     }
-    for (k = 0; k < 13; k++) {
-        q = q + 5;
+    for (k = 0; k < 10; k++) {
+        q = q + 10;
         y2 = y2 + 30 * Math.sin(q * Math.PI / 180);
         cxt.moveTo(100, y2);
         cxt.lineTo(500, y2);
     }
-    for (j = 0; j < 81; j++) {
+    for (j = 0; j < 41; j++) {
         cxt.moveTo(x, 0);
         cxt.lineTo(x, y2);
-        x = x + 5;
+        x = x + 10;
     }
     cxt.stroke();
 }
