@@ -231,6 +231,7 @@ function Lanbert(){
                 var canvas = document.getElementById("canv");
                 var cxt = canvas.getContext("2d");
                 cxt.clearRect(0, 0, 5000, 5000);
+                grid3();
                 cxt.beginPath();
                 cxt.lineWidth = 2;
                 var mb1 = Math.cos(B1) / Math.sqrt(1 - e1 * Math.pow(Math.sin(B1), 2));
