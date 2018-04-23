@@ -12,13 +12,13 @@
             <br><br>
             <input type="button" value="读取数据" onclick="BJ()">
             <input type="button" value="兰伯特投影" onclick="Lanbert()">
+            <input type="button" value="压缩" onclick="Lanbert()">
             <br> 
             </div>
             <div >
                 <canvas id="canv" width="5000px" height="5000px"></canvas>
             </div>
         </div>
-    
     <script type="text/javascript">
     function Point(x,y)
     {
@@ -30,6 +30,7 @@
       this.k=k;
       this.b=b;
     }
+    
     var A=new Array();
     var B=new Array();//存储兰伯特变换后的坐标
     var N=0;
@@ -132,6 +133,22 @@
           }
           cxt.stroke();
       }
+      var C=new Array();
+      function slope()
+    {
+      var k,b,l1;
+      for(i=0;i<N;i++){
+        l1=B[i].length;
+        k=(B[i][0].y-B[i][l1].y)/(B[i][0].x-B[i][l1].x);
+        b=B[i][0].y-k*B[i][0].x;
+        C[i]=new canshu(k,b);
+      }
+    }
+    function distance(x,y,k,b){
+      var dis;
+      dis=(Math.abs(k*x-y+b))/Math.sqrt(k*k+1);
+      return dis;
+    }
       
       </script>
       </head> 
