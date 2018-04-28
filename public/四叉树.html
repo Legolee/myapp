@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>四叉树编码</title>
+       
+    <body>
+			<script type="text/javascript"></script>
+			矩阵为：<br />
+            1, 1, 1, 1, 2, 2, 3, 3,<br />
+            1, 1, 1, 1, 2, 2, 3, 3,<br />
+            1, 1, 1, 1, 4, 4, 5, 5,<br />
+            1, 1, 1, 1, 4, 4, 5, 5,<br />
+            6, 6, 7, 8,13,13,14,14,<br />
+            6, 6, 9,10,13,13,14,14,<br />
+           11,11,12,12,15,16,19,19,<br />
+		        11,11,12,12,17,18,19,19<br />
+		   <br />
+	
+		   四叉树四进制编码为： <br />  
+
+        
+    <script type="text/javascript">
+    var i = [[0,0,0],[0,0,1],[0,1,0],[0,1,1],[1,0,0],[1,0,1],[1,1,0],[1,1,1]];//二进制数
+    var j = [[0,0,0],[0,0,1],[0,1,0],[0,1,1],[1,0,0],[1,0,1],[1,1,0],[1,1,1]];
+    var h,l;
+	
+  for(h=0;h<8;h++)
+	{
+		for(var l=0;l<8;l++)
+		{
+			var result1=i[h][0]*2+j[l][0];
+			var result2=i[h][1]*2+j[l][1];
+			var result3=i[h][2]*2+j[l][2];
+			document.write(result1);
+			document.write(result2);
+			document.write(result3);
+			document.write(" ");
+		}
+		document.write("<br>");
+	}
+    
+    var mor=[[1,1,1,1,2,2,3,3],[1,1,1,1,2,2,3,3],[1,1,1,1,4,4,5,5],[1,1,1,1,4,4,5,5],[6,6,7,8,13,13,14,14],[6,6,7,8,13,13,14,14],[11,11,12,12,15,16,19,19],[11,11,12,12,17,18,19,19]];
+   
+    var flag1=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    var flag2=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    var c1,c2,c3;
+    var counth=[0,0,2,2,0,0,2,2,4,4,6,6,4,4,6,6];
+    var countl=[0,2,0,2,4,6,4,6,0,2,0,2,4,6,4,6];
+    for(c1=0;c1<16;c1++)
+	{
+		for(c2=counth[c1],h=0;h<2;h++)
+		{
+			for(c3=countl[c1],l=0;l<2;l++)
+			{
+				if(countl[c1]==2||countl[c1]==6)
+				{
+				     if(((mor[c2+h][c3+l]!=mor[c2+h][c3-1+l])))
+					 {
+				 	   flag1[c1]=1;
+					 }
+				}
+				else
+				{
+                    if(((mor[c2+h][c3+l]!=mor[c2+h][c3+1+l])))
+					 {
+				 	   flag1[c1]=1;
+					 }					 
+				}	
+			}
+		}
+	}
+    for(c1=0;c1<8;c1++)
+	{
+		for(c2=0;c2<8;c2++)
+		{
+			if((c2!=0)&&(c2!=7))
+			{
+			   if(mor[c1][c2-1]!=mor[c1][c2]&&mor[c1][c2+1]!=mor[c1][c2])
+			   {
+				   flag2[c1*8+c2]=1;	   
+			   }
+			}
+			if(c2==0)
+			{
+				 if(mor[c1][c2+1]!=mor[c1][c2])
+			   {
+				   flag2[c1*8+c2]=1;
+			   }
+			}
+			if(c2==7)
+			{
+			   if(mor[c1][c2-1]!=mor[c1][c2])
+			   {
+				   flag2[c1*8+c2]=1;
+			   }
+			}
+		}
+	}
+	//第一层
+    var record=new Array();
+	
+    for(h=0;h<8;h++)
+	{
+		record[h]=new Array();
+		for(l=0;l<8;l++)
+		{
+			var result4=i[h][0]*2+j[l][0];
+		
+			record[h][l]=result4;
+		}
+	}
+	//第二层
+    var m;
+	for(m=0;m<16;m++)
+	{
+		if(flag1[m])
+		{
+			for(c2=countl[m],h=0;h<2;h++)
+					{
+				for(c3=counth[m],l=0;l<2;l++)
+						{
+				          record[counth[m]+h][countl[m]+l]=record[counth[m]+h][countl[m]+l]*10+i[counth[m]+h][1]*2+j[countl[m]+l][1];
+						}
+					}
+		}
+	}
+	//第三层
+    for(m=0;m<64;m++){
+		
+    if(flag2[m]){
+      var yu1=Math.floor(m/8);
+			var yu2=Math.floor(m%8);
+			result5=record[yu1][yu2]*10+i[yu1][2]*2+j[yu2][2];
+      record[yu1][yu2]=result5;
+      }
+	}
+	document.write("<br>");
+	document.write("合并后的四叉树编码为："); 
+	document.write("<br>");
+    for(h=0;h<8;h++){
+      for(l=0;l<8;l++){
+        document.write("  "+record[h][l]+"  "); 
+	   }
+     document.write("<br>");
+   }
+  
+    </script>
+</head> 
+</body>
