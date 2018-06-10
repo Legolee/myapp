@@ -4,9 +4,9 @@
         <title>道格拉斯普克算法</title>
         <style>
             header {
-                background-color:black;
-                color:white;
-                text-align:center;
+                background-color:rgb(255, 255, 255);
+                color:black;
+                
                 padding:5px;	 
             }
             nav {
@@ -22,11 +22,15 @@
                 float:left;
                 padding:10px;	 	 
             }
+            .container{
+            margin:0 auto;
+            width:800px;
+            }
             </style>
         
     <body>
         <header>
-                <h1>Douglas–Peucker algorithm</h1>
+                <h1>道格拉斯普克算法</h1>
             </header>
             <nav>
             <input type="file" id="filepick">
@@ -38,7 +42,7 @@
             <input type="button" value="清空" onclick="clearCanvas()">
         </nav>
             <section>
-                    <div class="bg-right">
+                    <div class="container">
                             <canvas id="cname" width="300px" height="300px"style="border: 1px solid black;"></canvas>
                     </div>  
             </section>
