@@ -4,26 +4,31 @@
         <title>symbol</title>
     <body>
             <script type="text/javascript"></script>
-            <style>
+            <style type="text/css">
                #string{  
               margin:0px auto;  
               width:300px;  
-              height:300px;  
+              height:100px;  
               background-color:white;  
               text-align:center; /* 文字居中 */  
               font-size:16px; /* 文字大小 */  
               color:black; /* 文字颜色 */  
-          }  
+              }  
+          .container{
+            margin:0 auto;
+            width:800px;
+            }
             </style>
          
         <div id="string">
             <input type="file" id="filepick">
+            <br>
             <input type="button" value="显示线" onclick="readwrite()">
             <input type="button" value="显示点" onclick="xianshidian()">
             <input type="button" value="清空" onclick="clearCanvas()">
           
             </div>
-            <div class="bg-right">
+            <div class="container">
                 <canvas id="cname" width="300px" height="300px"style="border: 1px solid black;"></canvas>
             </div>    
         <script type="text/javascript">
