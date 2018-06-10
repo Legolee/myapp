@@ -7,13 +7,32 @@
       </head>
       
       <body>
-          <div>
-              <input id="fileInput" type="file" onchange="readwrite()"/>
-              <input type="submit" value="构建多边形" onclick="zuozhuan()"/><br>
-              <canvas id="myCanvas" width="600" height="600" style="border:1px solid #c3c3c3">your browser does not support the canvas tag </canvas>
-
+            <script type="text/javascript"></script>
+            <style type="text/css">
+                #string{  
+               margin:0px auto;  
+               width:300px;  
+               height:100px;  
+               background-color:white;  
+               text-align:center; /* 文字居中 */  
+               font-size:16px; /* 文字大小 */  
+               color:black; /* 文字颜色 */  
+               }  
+           .container{
+             margin:0 auto;
+             width:800px;
+             }
+             </style>
+          <div id="string">
+                <font  face="黑体" color="black" size="5">构建多边形</font>
+              <input id="fileInput" type="file" onchange="readwrite()"/><br>
+              <input type="submit" value="构建多边形" onclick="zuozhuan()"/>
+              <input type="button" value="清空" onclick="clearCanvas()">
           </div>
-              
+          <div class="container">
+                <canvas id="myCanvas" width="800" height="600" style="border:1px solid #c3c3c3">your browser does not support the canvas tag </canvas>   
+          </div>
+            
           <script>
              
               function segment(seg,nd){
@@ -34,6 +53,11 @@
 
               var number=new Array();//原始各点坐标
               var tran=new Array();
+              function clearCanvas()  //清空画布的函
+              {  
+                  var cxt=document.getElementById("cname").getContext("2d");
+                  cxt.clearRect(0,0,canvas.width,canvas.height); 
+                  }   
               //主函数
               function readwrite(){
                   var file=document.getElementById("fileInput").files[0];
@@ -292,7 +316,7 @@
               function draw(x,y){
                   var canvas=document.getElementById("myCanvas");
                   var cxt=canvas.getContext('2d'); 
-                  cxt.lineWidth = 3;
+                  cxt.lineWidth = 2;
                   cxt.strokeStyle = "#0000ff";  
 
                   var len=x.length;

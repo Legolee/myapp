@@ -260,7 +260,7 @@
         var ctx=canvas.getContext('2d');
         s=0;
         var times=0;
-        ctx.font="20px Arial";
+        ctx.font="16px Arial";
         for(var i=0;i<n;i++)
         {
             
@@ -277,7 +277,7 @@
             }
             
         }
-        ctx.font="30px Arial";
+        ctx.font="20px Arial";
         //ctx.textAlign="center";
         var word=String(s/2);
         ctx.fillText("总面积为："+s/2,500,20);  
@@ -291,7 +291,6 @@
                     <option value="1">江苏省地图</option> 
                     <option value="2">江苏省地图墨卡托反算</option> 
                 </select>
-                <br>
                 <input type="button" onclick="mainFun()" value="确定"> <br>
                 <canvas id="myCanvas" width="1000" height="800" style="border:1px solid #747272">your browser does not support the canvas tag </canvas>
                 
