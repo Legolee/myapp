@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>symbol</title>
+    <body>
+            <script type="text/javascript"></script>
+        <div>
+            <input type="file" id="filepick">
+            <input type="button" value="显示线" onclick="readwrite()">
+            <input type="button" value="显示点" onclick="xianshidian()">
+            <input type="button" value="清空" onclick="clearCanvas()">
+          
+            </div>
+            <div class="bg-right">
+                <canvas id="cname" width="300px" height="300px"style="border: 2px solid black;"></canvas>
+        </div>    
+        <script type="text/javascript">
+
+    var canvas = document.getElementsByTagName('canvas')[0];
+    canvas.width = 800;//定义画布的长宽
+    canvas.height =800;
+    var canvas = document.getElementById("cname");
+    var cxt = canvas.getContext("2d");
+     
+
+         function Point(x,y)
+        {
+            this.x=x;
+            this.y=y;
+        }
+
+        function clearCanvas()  //清空画布的函数
+{  
+    var cxt=document.getElementById("cname").getContext("2d");
+    cxt.clearRect(0,0,canvas.width,canvas.height); 
+}   
+        function readwrite()//显示gen文件
+        {   
+            var cxt=document.getElementById("cname").getContext("2d");
+           cxt.clearRect(0,0,canvas.width,canvas.height); 
+ 
+            var inputfile = document.getElementById("filepick").files[0];
+            var reader = new FileReader();
+            reader.readAsText(inputfile);
+            reader.onload=function(e)
+            {   
+                var text=reader.result.split("\r\n");
+           
+                var string=new Array();
+                var e=0;
+                string[e]=new Array();
+        
+                var l=text.length;
+                var n=0;
+
+                var xpoints=new Array();
+                var ypoints=new Array();
+                xpoints[e]=new Array();
+                ypoints[e]=new Array();
+
+                for(i=1;i<l-1;i++) 
+                {   
+                    
+                    if(text[i]!="END")
+                    {   
+                        if(text[i].length!=1&&text[i].length!=2&&text[i].length!=3&&text[i].length!=4)
+                        {
+                        var x;
+                        var y;
+                        x=text[i].split(",")[0];
+                        y=text[i].split(",")[1];
+
+                        xpoints[e][n]=x*3-1290000+10;
+                        ypoints[e][n]=800-y*3+9781100;
+                            
+                        string[e][n]=new Point(x,y);
+                        n++;
+                        }
+                    }
+                    else
+                    {
+                        n=0;
+                        e=e+1;
+                        string[e]=new Array();
+                        xpoints[e]=new Array();
+                        ypoints[e]=new Array();
+
+                    }
+                }
+                
+                cxt.beginPath();
+                cxt.strokeStyle = "blue"; 
+                cxt.lineWidth =3;
+                for(i=0;i<e+1;i++)
+                {
+                    for(j=0;j<string[i].length-1;j++)
+                    {
+                        cxt.moveTo((string[i][j].x)*3-1290000+10,(800-(string[i][j].y)*3+9781100));
+                        cxt.lineTo((string[i][j+1].x)*3-1290000+10,(800-(string[i][j+1].y)*3+9781100)); 
+                    }
+                }
+                cxt.stroke();
+             
+
+       var xmax=new Array();//存每个图形的最大x值
+       var xmin=new Array();
+       var ymax=new Array();
+       var ymin=new Array();
+
+
+       for(i=0;i<481;i++)
+                {
+                 
+                        xmax[i]=Math.max.apply(null, xpoints[i]);
+                        xmin[i]=Math.min.apply(null,xpoints[i]);
+                        ymax[i]=Math.max.apply(null, ypoints[i]);
+                        ymin[i]=Math.min.apply(null,ypoints[i]);
+                  
+                }
+        
+        var kuan=new Array();
+        var chang=new Array();
+        
+        for(i=0;i<481;i++)
+        {
+            kuan[i]=xmax[i]-xmin[i];
+            chang[i]=ymax[i]-ymin[i];
+        }
+
+        var num=new Array();
+        
+        for(i=0;i<481;i++)
+        {
+           num[i]=Math.ceil((kuan[i]+chang[i])/10);//向上取整的
+        }
+
+        var ii;
+        
+        cxt.beginPath();
+        cxt.strokeStyle = "red"; 
+        cxt.lineWidth =3;
+        var k;
+        
+        for(i=0;i<481;i++)//遍历每一个图形
+        {
+            var xjiaodian=new Array();
+        var yjiaodian=new Array();
+
+            for(ii=1;ii<num[i]+1;ii++)//每条斜线求一遍所有交点并连线
+            {
+                //k是每一个图形每一条线交点的个数，算完一条线后清零  
+                k=0;
+               
+                    
+                for(j=0;j<481;j++)//某一条填充斜线和每一条线都相交一遍并将所有交点存入交点数组
+                {   
+                    var x1=xmin[i]+10*ii;//要被截取的填充斜线
+                    var y1=ymin[i];
+                    var x2=xmin[i];
+                    var y2=ymin[i]+10*ii;
+            
+                    var x3=xpoints[i][j];//某一个图形上的线段
+                    var y3=ypoints[i][j];
+                    var x4=xpoints[i][j+1];
+                    var y4=ypoints[i][j+1];
+
+                    var denominator = (y2 - y1)*(x4 - x3) - (x1 - x2)*(y3 - y4); //算交点xy
+                    var x = ( (x2 - x1) * (x4 - x3) * (y3 - y1) + (y2 - y1) * (x4 - x3) * x1 - (y4 - y3) * (x2 - x1) * x3 ) / denominator ; 
+                    var y = -( (y2 - y1) * (y4 - y3) * (x3 - x1) + (x2 - x1) * (y4 - y3) * y1 - (x4 - x3) * (y2 - y1) * y3 ) / denominator;  
+                    
+                    //判断交点是否在两条线段上，如果是才保留，存入交点数组
+                    if ((x - x1) * (x - x2) <= 0 && (y - y1) * (y - y2) <= 0 && (x - x3) * (x - x4) <= 0 && (y - y3) * (y - y4) <= 0  )
+
+                    // 交点在线段1上 且交点也在线段2上 
+                       {
+                       xjiaodian[k]=x;
+                       yjiaodian[k]=y;
+                       k++;
+                       } 
+                }
+
+                for(var pp=0;pp<k;pp++) //在存完一条线和图形所有的交点后画线
+                {
+                   if((pp+2)%2==0)
+                    {
+                       cxt.moveTo(xjiaodian[pp],yjiaodian[pp]);
+                       cxt.lineTo(xjiaodian[pp+1],yjiaodian[pp+1]);   
+                    }
+                }        
+            }      
+            }    
+        }
+        cxt.stroke();
+        }
+
+
+function xianshidian()
+        {   
+            var cxt=document.getElementById("cname").getContext("2d");
+           cxt.clearRect(0,0,canvas.width,canvas.height); 
+ 
+            var inputfile = document.getElementById("filepick").files[0];
+            var reader = new FileReader();
+            reader.readAsText(inputfile);
+            reader.onload=function(e)
+            {   
+                var text=reader.result.split("\r\n");
+           
+                var string=new Array();
+                var e=0;
+                string[e]=new Array();
+        
+                var l=text.length;
+                var n=0;
+
+                
+                var xpoints=new Array();
+            
+                var ypoints=new Array();
+                xpoints[e]=new Array();
+                ypoints[e]=new Array();
+
+                for(i=1;i<l-1;i++) 
+                {   
+                    
+                    if(text[i]!="END")
+                    {   
+                        if(text[i].length!=1&&text[i].length!=2&&text[i].length!=3&&text[i].length!=4)
+                        {
+                        var x;
+                        var y;
+                        x=text[i].split(",")[0];
+                        y=text[i].split(",")[1];
+
+                        xpoints[e][n]=x*3-1290000+10;
+                        ypoints[e][n]=800-y*3+9781100;
+                            
+                        string[e][n]=new Point(x,y);
+                        n++;
+                        }
+                    }
+                    else
+                    {
+                        n=0;
+                        e=e+1;
+                        string[e]=new Array();
+                        xpoints[e]=new Array();
+                        ypoints[e]=new Array();
+
+                    }
+                }
+                
+                cxt.beginPath();
+                cxt.strokeStyle = "red"; 
+                cxt.lineWidth =3;
+                for(i=0;i<e+1;i++)
+                {
+                    for(j=0;j<string[i].length-1;j++)
+                    {
+                        cxt.moveTo((string[i][j].x)*3-1290000+10,(800-(string[i][j].y)*3+9781100));
+                        cxt.lineTo((string[i][j+1].x)*3-1290000+10,(800-(string[i][j+1].y)*3+9781100)); 
+                    }
+                }
+                cxt.stroke();
+             
+
+       var xmax=new Array();//存每个图形的最大x值
+       var xmin=new Array();
+       var ymax=new Array();
+       var ymin=new Array();
+
+
+       for(i=0;i<481;i++)
+                {
+            
+                        xmax[i]=Math.max.apply(null, xpoints[i]);
+                        xmin[i]=Math.min.apply(null,xpoints[i]);
+                        ymax[i]=Math.max.apply(null, ypoints[i]);
+                        ymin[i]=Math.min.apply(null,ypoints[i]);
+                  
+                }
+        
+        var kuan=new Array();var chang=new Array();
+        
+        for(i=0;i<481;i++)
+        {
+            kuan[i]=xmax[i]-xmin[i];
+            chang[i]=ymax[i]-ymin[i];
+        }
+
+        var num=new Array();
+        
+        for(i=0;i<481;i++)
+        {
+           num[i]=Math.ceil((kuan[i]+chang[i])/10);//向上取整的
+        }
+
+        var ii;
+        
+        cxt.beginPath();
+        cxt.strokeStyle = "red"; 
+        cxt.lineWidth =3;
+        var k;
+        
+        for(i=0;i<481;i++)//遍历每一个图形
+        {
+            var xjiaodian=new Array();
+        var yjiaodian=new Array();
+
+            for(ii=1;ii<num[i]+1;ii++)//每条斜线求一遍所有交点并连线
+            {
+                //k是每一个图形每一条线交点的个数，算完一条线后清零  
+                k=0; 
+               
+                for(j=0;j<481;j++)//某一条填充斜线和每一条线都相交一遍并将所有交点存入交点数组
+                {   
+            
+                    var x1=xpoints[i][j];//某一个图形上的线段
+                    var y1=ypoints[i][j];
+                    var x2=xpoints[i][j+1];
+                    var y2=ypoints[i][j+1];
+
+                    var yy=ymin[i]+ii*10;
+
+                    var x=(yy-y1)*(x2-x1)/(y2-y1)+x1;
+                    var y=yy;
+                    
+                    if ((x - 0) * (x - 800) <= 0 && (y - yy) * (y - yy) <= 0 && (x - x1) * (x - x2) <= 0 && (y - y1) * (y - y2) <= 0  )
+                    {
+                        xjiaodian[k]=x;
+                        yjiaodian[k]=yy;
+                        k++;
+                    }
+
+                   
+                }
+
+                for(var pp=0;pp<k;pp++) //在存完一条线和图形所有的交点后画线
+                {
+                    
+
+                    xmax2=Math.max.apply(Math,xjiaodian);
+
+                   //if((pp+2)%2==0)
+                    {
+                      // cxt.moveTo(xjiaodian[pp],yjiaodian[pp]);
+                      // cxt.lineTo(xjiaodian[pp+1],yjiaodian[pp+1]);  
+                    }
+                       
+                    var q;
+                    
+                   if((pp+2)%2==0)
+                   {
+                     //if((xjiaodian[pp]+q*5)<xmax2)
+                     
+                        for(q=0;(xjiaodian[pp]+q*10)<xmax2;q++)
+                        {
+                            var n=1;
+                            cxt.fillRect(xjiaodian[pp]+q*10,yjiaodian[pp],n,n);
+                            cxt.fillRect(xjiaodian[pp]+q*10+n,yjiaodian[pp]+n,2*n,n);
+                            cxt.fillRect(xjiaodian[pp]+q*10+3*n,yjiaodian[pp],n,n);
+                        }
+                   }
+                    
+                } 
+                
+            }
+                
+            }
+           
+        }
+
+cxt.stroke();
+}
+   
+
+
+    </script>
+</head> 
+<body>
