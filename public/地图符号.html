@@ -21,8 +21,10 @@
             </style>
          
         <div id="string">
+
+            <font  face="黑体" color="black" size="5">地图符号显示</font>
+            <br><br>
             <input type="file" id="filepick">
-            <br>
             <input type="button" value="显示线" onclick="readwrite()">
             <input type="button" value="显示点" onclick="xianshidian()">
             <input type="button" value="清空" onclick="clearCanvas()">
@@ -35,7 +37,7 @@
 
     var canvas = document.getElementsByTagName('canvas')[0];
     canvas.width = 800;//定义画布的长宽
-    canvas.height =800;
+    canvas.height =500;
     var canvas = document.getElementById("cname");
     var cxt = canvas.getContext("2d");
      
@@ -106,8 +108,8 @@
                 }
                 
                 cxt.beginPath();
-                cxt.strokeStyle = "blue"; 
-                cxt.lineWidth =3;
+                cxt.strokeStyle = "black"; 
+                cxt.lineWidth =2;
                 for(i=0;i<e+1;i++)
                 {
                     for(j=0;j<string[i].length-1;j++)
@@ -154,8 +156,8 @@
         var ii;
         
         cxt.beginPath();
-        cxt.strokeStyle = "red"; 
-        cxt.lineWidth =3;
+        cxt.strokeStyle = "blue"; 
+        cxt.lineWidth =2;
         var k;
         
         for(i=0;i<481;i++)//遍历每一个图形
@@ -268,8 +270,8 @@ function xianshidian()
                 }
                 
                 cxt.beginPath();
-                cxt.strokeStyle = "red"; 
-                cxt.lineWidth =3;
+                cxt.strokeStyle = "black"; 
+                cxt.lineWidth =2;
                 for(i=0;i<e+1;i++)
                 {
                     for(j=0;j<string[i].length-1;j++)
@@ -315,8 +317,8 @@ function xianshidian()
         var ii;
         
         cxt.beginPath();
-        cxt.strokeStyle = "red"; 
-        cxt.lineWidth =3;
+        cxt.strokeStyle = "black"; 
+        cxt.lineWidth =2;
         var k;
         
         for(i=0;i<481;i++)//遍历每一个图形
