@@ -317,7 +317,8 @@
                   var canvas=document.getElementById("myCanvas");
                   var cxt=canvas.getContext('2d'); 
                   cxt.lineWidth = 2;
-                  cxt.strokeStyle = "#0000ff";  
+                  cxt.strokeStyle = "#0000ff"; 
+                 // ctx.fillStyle = 'rgba(255,0,0,.3)';                  
 
                   var len=x.length;
                   cxt.beginPath(); 
@@ -326,6 +327,8 @@
                       cxt.lineTo(x[i],y[i]-200);
                   }
                   cxt.stroke();     
+                 // ctx.fill();
+
               }
               //变换
                function symmetryy(){
