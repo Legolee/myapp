@@ -1,413 +1,881 @@
-<Doctype>
-  <html>
-      <head>
-          <title>
-             矢量栅格化
-          </title>
-      </head>
-      
-      <body>
-            <script type="text/javascript"></script>
-            <style type="text/css">
-                #string{  
-               margin:0px auto;  
-               width:300px;  
-               height:100px;  
-               background-color:white;  
-               text-align:center; /* 文字居中 */  
-               font-size:16px; /* 文字大小 */  
-               color:black; /* 文字颜色 */  
-               }  
-           .container{
-             margin:0 auto;
-             width:800px;
-             }
-             </style>
-          <div id="string">
-                <font  face="黑体" color="black" size="5">构建多边形</font>
-              <input id="fileInput" type="file" onchange="readwrite()"/><br>
-              <input type="submit" value="构建多边形并栅格化" onclick="zuozhuan()"/>
-              <input type="button" value="清空" onclick="clearCanvas()">
-          </div>
-          <div class="container">
-                <canvas id="myCanvas" width="800" height="600" style="border:1px solid #c3c3c3">your browser does not support the canvas tag </canvas>   
-          </div>
-            
-          <script>
-             
-              function segment(seg,nd){
-                  this.seg=seg;
-                  this.nd=nd;
-                  this.frequency=0;//记录使用次数
-                  this.direction=0;//0表示正方向，1表示逆方向
-              }
-              //结点弧段表 
-              function point(x,y,seg){
-                  this.x=x;
-                  this.y=y;
-                  this.seg=seg;//弧段
-              }
-              var node=new Array();//结点-弧段表
-              var segmt=new Array();//弧段-结点表
+<html>
+<header>
+    <title>矢量转栅格</title>
+</header>
 
+<body>
+    <input type="file" id="file" onchange="readGen(this.file)">
+    <br>
+    <canvas id="canvas"></canvas>
+    <br>
+    <canvas id="canvas1"></canvas>
+    <table id="matrix"></table>
 
-              var number=new Array();//原始各点坐标
-              var tran=new Array();
-              function clearCanvas()  //清空画布的函
-              {  
-                  var cxt=document.getElementById("cname").getContext("2d");
-                  cxt.clearRect(0,0,canvas.width,canvas.height); 
-                  }   
-              //主函数
-              function readwrite(){
-                  var file=document.getElementById("fileInput").files[0];
-                  var reader=new FileReader();
-                  reader.readAsText(file);
-                  reader.onload=function(e)
-                  {
-                      var str = this.result;//读取文本       
-                      number= digitalExtraction(str,number);//提取数字并存入数组
-                      tran=number.slice(0);
+    <script>
+        //结点类
+        function Node(x, y) {
+            //x坐标
+            this.x = x;
+            //y坐标
+            this.y = y;
+            //结点连通的弧段
+            this.arcConnected = new Array();
+            //结点与连通弧段的角度
+            this.arcAngle = new Array();
+            //在弧段中是起点还是终点
+            this.startEnd = new Array();
+        }
+        //弧段类
+        function Arc() {
+            //记录中间结点
+            this.middleNodes = new Array();
+            //起点编号
+            this.startNode = undefined;
+            //终点编号
+            this.endNode = undefined;
+            //标记弧段两个方向是否被记录
+            this.direction1Passed = 0;
+            this.direction2Passed = 0;
+            //弧段的左多边形
+            this.leftPolygon = undefined;
+            //弧段的右多边形
+            this.rightPolygon = undefined;
+        }
+        //多边形类
+        function Polygon() {
+            //组成多边形的弧段
+            this.ringArcs = new Array();
+            //弧段的方向，0表示起到终，1表示终到起
+            this.direction = new Array();
+            //多边形面积
+            this.area = undefined;
+            //多边形内部的岛
+            this.island = new Array();
+            //是否是岛
+            this.isIsland = undefined;
+        }
+        //判断nodes数组中是否出现当前结点
+        function nodesExist(nodes, x, y) {
+            for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].x == x) {
+                    if (nodes[i].y == y) {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+        //读取弧段信息
+        function readArcs(lines, arcs) {
+            var newArc = new Arc();
+            var middleNodes = new Array();
+            for (var i = 0; i < lines.length - 1; i++) {
+                if (lines[i] == "END") {
+                    newArc.middleNodes = middleNodes;
+                    arcs.push(newArc);
+                    newArc = new Arc();
+                    middleNodes = new Array();
+                    continue;
+                }
+                var xy = lines[i].split(",");
+                //当前行不是坐标，下一行为起点
+                if (xy[1] == undefined) {
+                    continue;
+                }
+                var x = Number(xy[0]);
+                var y = Number(xy[1]);
+                var middleNode = new Node(x, y);
+                middleNodes.push(middleNode);
+            }
+            return arcs;
+        }
+        //判断直线是否相交
+        function isCross(x11, y11, x12, y12, x21, y21, x22, y22) {
+            var dx1 = x12 - x11;
+            var dy1 = y12 - y11;
+            var dx2 = x22 - x21;
+            var dy2 = y22 - y21;
+            var cx = x21 - x11;
+            var cy = y21 - y11;
+            if (dx1 * dy2 - dy1 * dx2 == 0)
+                return undefined;
+            else {
+                var t = (cx * dy2 - cy * dx2) / (dx1 * dy2 - dy1 * dx2);
+                var v = (cx * dy1 - cy * dx1) / (dx1 * dy2 - dy1 * dx2);
+                if (t >= 0 && t <= 1 && v >= 0 && v <= 1)
+                    return t;
+                else
+                    return undefined;
+            }
+        }
+        //打断一次自相交弧段
+        function breakSelfCrossArc(arc, newArcs) {
+            var arc1 = new Arc();
+            var arc2 = new Arc();
+            var isSelfCross = 0;
+            for (var j = 0; j < arc.middleNodes.length - 3; j++) {
+                for (var k = j + 2; k < arc.middleNodes.length - 1; k++) {
+                    var t = isCross(arc.middleNodes[j].x, arc.middleNodes[j].y, arc.middleNodes[j + 1].x, arc.middleNodes[j + 1].y, arc.middleNodes[k].x, arc.middleNodes[k].y, arc.middleNodes[k + 1].x, arc.middleNodes[k + 1].y);
+                    if (t != undefined) {
+                        var crossX = arc.middleNodes[j].x + (arc.middleNodes[j + 1].x - arc.middleNodes[j].x) * t;
+                        var crossY = arc.middleNodes[j].y + (arc.middleNodes[j + 1].y - arc.middleNodes[j].y) * t;
+                        //相交的两条弧段连成环
+                        if (arc.middleNodes[j].x == arc.middleNodes[k + 1].x && arc.middleNodes[j].y == arc.middleNodes[k + 1].y)
+                            continue;
+                        //前一条线穿过交点
+                        else if ((arc.middleNodes[j].x != crossX || arc.middleNodes[j].y != crossY) && (arc.middleNodes[j + 1].x != crossX || arc.middleNodes[j + 1].y != crossY)) {
+                            for (var i = 0; i < j + 1; i++) {
+                                arc1.middleNodes.push(arc.middleNodes[i]);
+                            }
+                            arc1.middleNodes.push(new Node(crossX, crossY));
+                            arc2.middleNodes.push(new Node(crossX, crossY));
+                            for (var i = j + 1; i < arc.middleNodes.length; i++) {
+                                arc2.middleNodes.push(arc.middleNodes[i]);
+                            }
+                        }
+                        //后一条线穿过交点
+                        else if ((arc.middleNodes[k].x != crossX || arc.middleNodes[k].y != crossY) && (arc.middleNodes[k + 1].x != crossX || arc.middleNodes[k + 1].y != crossY)) {
+                            for (var i = 0; i < k + 1; i++) {
+                                arc1.middleNodes.push(arc.middleNodes[i]);
+                            }
+                            arc1.middleNodes.push(new Node(crossX, crossY));
+                            arc2.middleNodes.push(new Node(crossX, crossY));
+                            for (var i = k + 1; i < arc.middleNodes.length; i++) {
+                                arc2.middleNodes.push(arc.middleNodes[i]);
+                            }
+                        }
+                        else {
+                            if (arc.middleNodes[j].x == arc.middleNodes[k].x && arc.middleNodes[j].y == arc.middleNodes[k].y) {
+                                for (var i = 0; i < k + 1; i++) {
+                                    arc1.middleNodes.push(arc.middleNodes[i]);
+                                }
+                                for (var i = k; i < arc.middleNodes.length; i++) {
+                                    arc2.middleNodes.push(arc.middleNodes[i]);
+                                }
+                            }
+                            else if (arc.middleNodes[j + 1].x == arc.middleNodes[k + 1].x && arc.middleNodes[j + 1].y == arc.middleNodes[k + 1].y) {
+                                for (var i = 0; i < j + 2; i++) {
+                                    arc1.middleNodes.push(arc.middleNodes[i]);
+                                }
+                                for (var i = j + 1; i < arc.middleNodes.length; i++) {
+                                    arc2.middleNodes.push(arc.middleNodes[i]);
+                                }
+                            }
+                        }
+                        isSelfCross = 1;
+                        break;
+                    }
+                }
+                if (isSelfCross)
+                    break;
+            }
+            if (!isSelfCross)
+                newArcs.push(arc);
+            else {
+                breakSelfCrossArc(arc1, newArcs);
+                breakSelfCrossArc(arc2, newArcs);
+            }
+        }
+        //打断所有自相交弧段
+        function breakSelfCross(arcs) {
+            var newArcs = new Array();
+            for (var i = 0; i < arcs.length; i++) {
+                breakSelfCrossArc(arcs[i], newArcs);
+            }
+            return newArcs;
+        }
+        //判断弧段外接矩形是否相交或包含
+        function rectangleCross(arc1, arc2) {
+            var arc1X = new Array();
+            var arc1Y = new Array();
+            var arc2X = new Array();
+            var arc2Y = new Array();
+            for (var i = 0; i < arc1.middleNodes.length; i++) {
+                arc1X.push(arc1.middleNodes[i].x);
+                arc1Y.push(arc1.middleNodes[i].y);
+            }
+            for (var i = 0; i < arc2.middleNodes.length; i++) {
+                arc2X.push(arc2.middleNodes[i].x);
+                arc2Y.push(arc2.middleNodes[i].y);
+            }
+            var bottom1 = Math.min.apply(null, arc1Y);
+            var left1 = Math.min.apply(null, arc1X);
+            var top1 = Math.max.apply(null, arc1Y);
+            var right1 = Math.max.apply(null, arc1X);
+            var bottom2 = Math.min.apply(null, arc2Y);
+            var left2 = Math.min.apply(null, arc2X);
+            var top2 = Math.max.apply(null, arc2Y);
+            var right2 = Math.max.apply(null, arc2X);
+            if (bottom1 > top2 || right1 < left2 || left1 > right2 || top1 < bottom2)
+                return 0;
+            return 1;
+        }
+        //在交点处打断相交线
+        function breakAtPoints(arc, crossPoint, newArcs) {
+            var arc1 = new Arc();
+            var arc2 = new Arc();
+            var isOnLine = 0;
+            for (var i = 0; i < crossPoint.length; i++) {
+                if ((arc.middleNodes[0].x == crossPoint[i].x && arc.middleNodes[0].y == crossPoint[i].y) || (arc.middleNodes[arc.middleNodes.length - 1].x == crossPoint[i].x && arc.middleNodes[arc.middleNodes.length - 1].y == crossPoint[i].y))
+                    continue;
+                else {
+                    for (var j = 0; j < arc.middleNodes.length - 1; j++) {
+                        var flag1 = (crossPoint[i].x - arc.middleNodes[j].x) * (arc.middleNodes[j + 1].y - arc.middleNodes[j].y);
+                        var flag2 = (crossPoint[i].y - arc.middleNodes[j].y) * (arc.middleNodes[j + 1].x - arc.middleNodes[j].x);
+                        //在折点处相交
+                        if (arc.middleNodes[j].x == crossPoint[i].x && arc.middleNodes[j].y == crossPoint[i].y) {
+                            for (var k = 0; k < j + 1; k++) {
+                                arc1.middleNodes.push(arc.middleNodes[k]);
+                            }
+                            for (var k = j; k < arc.middleNodes.length; k++) {
+                                arc2.middleNodes.push(arc.middleNodes[k]);
+                            }
+                        }
+                        else if (arc.middleNodes[j + 1].x == crossPoint[i].x && arc.middleNodes[j + 1].y == crossPoint[i].y) {
+                            for (var k = 0; k < j + 2; k++) {
+                                arc1.middleNodes.push(arc.middleNodes[k]);
+                            }
+                            for (var k = j + 1; k < arc.middleNodes.length; k++) {
+                                arc2.middleNodes.push(arc.middleNodes[k]);
+                            }
+                        }
+                        //交点在线段中间
+                        else if (flag1 == flag2 && Math.min(arc.middleNodes[j].x, arc.middleNodes[j + 1].x) <= crossPoint[i].x && Math.max(arc.middleNodes[j].x, arc.middleNodes[j + 1].x) >= crossPoint[i].x) {
+                            for (var k = 0; k < j + 1; k++) {
+                                arc1.middleNodes.push(arc.middleNodes[k]);
+                            }
+                            arc1.middleNodes.push(crossPoint[i]);
+                            arc2.middleNodes.push(crossPoint[i]);
+                            for (var k = j + 1; k < arc.middleNodes.length; k++) {
+                                arc2.middleNodes.push(arc.middleNodes[k]);
+                            }
+                        }
+                        else {
+                            continue;
+                        }
+                        isOnLine = 1;
+                        break;
+                    }
+                    if (isOnLine == 1) {
+                        break;
+                    }
+                }
+            }
+            if (!isOnLine) {
+                newArcs.push(arc);
+            }
+            else {
+                breakAtPoints(arc1, crossPoint, newArcs);
+                breakAtPoints(arc2, crossPoint, newArcs);
+            }
+        }
+        //打断相交线
+        function breakArcs(arcs) {
+            var newArcs = new Array();
+            var crossPoint = new Array();
+            for (var i = 0; i < arcs.length - 1; i++) {
+                for (var j = i + 1; j < arcs.length; j++) {
+                    if (rectangleCross(arcs[i], arcs[j])) {
+                        for (var m = 0; m < arcs[i].middleNodes.length - 1; m++) {
+                            for (var n = 0; n < arcs[j].middleNodes.length - 1; n++) {
+                                var t = isCross(arcs[i].middleNodes[m].x, arcs[i].middleNodes[m].y, arcs[i].middleNodes[m + 1].x, arcs[i].middleNodes[m + 1].y, arcs[j].middleNodes[n].x, arcs[j].middleNodes[n].y, arcs[j].middleNodes[n + 1].x, arcs[j].middleNodes[n + 1].y);
+                                if (t != undefined) {
+                                    var crossX = arcs[i].middleNodes[m].x + (arcs[i].middleNodes[m + 1].x - arcs[i].middleNodes[m].x) * t;
+                                    var crossY = arcs[i].middleNodes[m].y + (arcs[i].middleNodes[m + 1].y - arcs[i].middleNodes[m].y) * t;
+                                    if (nodesExist(crossPoint, crossX, crossY) == -1)
+                                        crossPoint.push(new Node(crossX, crossY));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for (var i = 0; i < arcs.length; i++) {
+                breakAtPoints(arcs[i], crossPoint, newArcs);
+            }
+            return newArcs;
+        }
+        //由弧段信息得到结点信息
+        function getNodeInfo(arcs) {
+            var nodes = new Array();
+            for (var i = 0; i < arcs.length; i++) {
+                var nodeID = nodesExist(nodes, arcs[i].middleNodes[0].x, arcs[i].middleNodes[0].y)
+                if (nodeID == -1) {
+                    var newNode = arcs[i].middleNodes[0];
+                    newNode.arcConnected.splice(0, newNode.arcConnected.length);
+                    newNode.arcConnected[0] = i;
+                    newNode.startEnd.splice(0, newNode.startEnd.length - 1);
+                    newNode.startEnd[0] = 0;
+                    nodes.push(newNode);
+                }
+                else {
+                    nodes[nodeID].arcConnected.push(i);
+                    nodes[nodeID].startEnd.push(0);
+                }
+                var nodeID = nodesExist(nodes, arcs[i].middleNodes[arcs[i].middleNodes.length - 1].x, arcs[i].middleNodes[arcs[i].middleNodes.length - 1].y);
+                if (nodeID == -1) {
+                    var newNode = arcs[i].middleNodes[arcs[i].middleNodes.length - 1];
+                    newNode.arcConnected.splice(0, newNode.arcConnected.length);
+                    newNode.arcConnected[0] = i;
+                    newNode.startEnd.splice(0, newNode.startEnd.length - 1);
+                    newNode.startEnd[0] = 1;
+                    nodes.push(newNode);
+                }
+                else if (nodes[nodeID].arcConnected[0] != i) {
+                    nodes[nodeID].arcConnected.push(i);
+                    nodes[nodeID].startEnd.push(1);
+                }
+            }
+            return nodes;
+        }
+        //在端点处连接两个弧段
+        function bindArcs(arcs, index1, index2) {
+            var x11 = arcs[index1].middleNodes[0].x;
+            var y11 = arcs[index1].middleNodes[0].y;
+            var x12 = arcs[index1].middleNodes[arcs[index1].middleNodes.length - 1].x;
+            var y12 = arcs[index1].middleNodes[arcs[index1].middleNodes.length - 1].y;
+            var x21 = arcs[index2].middleNodes[0].x;
+            var y21 = arcs[index2].middleNodes[0].y;
+            var x22 = arcs[index2].middleNodes[arcs[index2].middleNodes.length - 1].x;
+            var y22 = arcs[index2].middleNodes[arcs[index2].middleNodes.length - 1].y;
+            var newArc = new Arc();
+            if (x11 == x21 && y11 == y21) {
+                for (var i = arcs[index1].middleNodes.length - 1; i > 0; i++) {
+                    newArc.middleNodes.push(arcs[index1].middleNodes[i]);
+                }
+                for (var i = 0; i < arcs[index2].middleNodes.length; i++) {
+                    newArc.middleNodes.push(arcs[index2].middleNodes[i]);
+                }
+            }
+            else if (x11 == x22 && y11 == y22) {
+                for (var i = 0; i < arcs[index2].middleNodes.length; i++) {
+                    newArc.middleNodes.push(arcs[index2].middleNodes[i]);
+                }
+                for (var i = 1; i < arcs[index1].middleNodes.length; i++) {
+                    newArc.middleNodes.push(arcs[index1].middleNodes[i]);
+                }
+            }
+            else if (x12 == x21 && y12 == y21) {
+                for (var i = 0; i < arcs[index1].middleNodes.length; i++) {
+                    newArc.middleNodes.push(arcs[index1].middleNodes[i]);
+                }
+                for (var i = 1; i < arcs[index2].middleNodes.length; i++) {
+                    newArc.middleNodes.push(arcs[index2].middleNodes[i]);
+                }
+            }
+            else if (x12 == x22 && y12 == y22) {
+                for (var i = 0; i < arcs[index2].middleNodes.length - 1; i++) {
+                    newArc.middleNodes.push(arcs[index2].middleNodes[i]);
+                }
+                for (var i = arcs[index1].middleNodes.length - 1; i >= 0; i++) {
+                    newArc.middleNodes.push(arcs[index1].middleNodes[i]);
+                }
+            }
+            arcs.splice(Math.min(index1, index2), 1);
+            arcs.splice(Math.max(index1, index2) - 1, 1);
+            arcs.push(newArc);
+        }
+        //消除伪结点
+        function clearPseudoNode(arcs) {
+            var nodes = getNodeInfo(arcs);
+            var havePseudoNode = 0;
+            for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].arcConnected.length == 2) {
+                    bindArcs(arcs, nodes[i].arcConnected[0], nodes[i].arcConnected[1]);
+                    havePseudoNode = 1;
+                    break;
+                }
+            }
+            if (havePseudoNode)
+                return clearPseudoNode(arcs);
+            return arcs;
+        }
+        //记录弧段始末结点
+        function addStartEnd(nodes, arcs) {
+            for (var i = 0; i < arcs.length; i++) {
+                arcs[i].startNode = nodesExist(nodes, arcs[i].middleNodes[0].x, arcs[i].middleNodes[0].y);
+                arcs[i].endNode = nodesExist(nodes, arcs[i].middleNodes[arcs[i].middleNodes.length - 1].x, arcs[i].middleNodes[arcs[i].middleNodes.length - 1].y);
+            }
+            return arcs;
+        }
+        //计算单个方位角
+        function calAngle(x1, y1, x2, y2) {
+            var dx = x2 - x1;
+            var dy = y2 - y1;
+            if (dy >= 0) {
+                return Math.atan2(dy, dx);
+            }
+            else {
+                return Math.PI * 2 + Math.atan2(dy, dx);
+            }
+        }
+        //计算每个方位角
+        function calNodesAngle(nodes, arcs) {
+            var arcAngle;
+            for (var i = 0; i < nodes.length; i++) {
+                for (var j = 0; j < nodes[i].arcConnected.length; j++) {
+                    //当前结点是弧段的起点
+                    var nowArc = arcs[nodes[i].arcConnected[j]];
+                    if (nowArc.startNode == i) {
+                        arcAngle = calAngle(nowArc.middleNodes[0].x, nowArc.middleNodes[0].y, nowArc.middleNodes[1].x, nowArc.middleNodes[1].y);
+                    }
+                    else if (nowArc.endNode == i) {
+                        arcAngle = calAngle(nowArc.middleNodes[nowArc.middleNodes.length - 1].x, nowArc.middleNodes[nowArc.middleNodes.length - 1].y, nowArc.middleNodes[nowArc.middleNodes.length - 2].x, nowArc.middleNodes[nowArc.middleNodes.length - 2].y);
+                    }
+                    nodes[i].arcAngle.push(arcAngle);
+                }
+            }
+            return nodes;
+        }
+        //寻找结点处相对参考线最小方位角，同时方向没有走过的弧段
+        function findMinAngle(ref, nodes, i, arcs, isFirst) {
+            var angles = new Array();
+            var index = new Array();
+            //记录可行弧段
+            for (var j = 0; j < nodes[i].arcConnected.length; j++) {
+                //var startEnd = isStartEnd(i,arcs[nodes[i].arcConnected[j]]);
+                var angle = nodes[i].arcAngle[j] - ref;
+                if (angle < 0)
+                    angle += Math.PI * 2;
+                if (nodes[i].startEnd[j] == 0 && arcs[nodes[i].arcConnected[j]].direction1Passed == 0) {
+                    angles.push(angle);
+                    index.push(nodes[i].arcConnected[j]);
+                }
+                else if (nodes[i].startEnd[j] == 1 && arcs[nodes[i].arcConnected[j]].direction2Passed == 0) {
+                    angles.push(angle);
+                    index.push(nodes[i].arcConnected[j]);
+                }
+            }
+            if (angles.length == 0)
+                return -1;
+            //寻找方位角最小值
+            var min = Math.PI * 2;
+            var minIndex = 0;
+            if (isFirst) {
+                for (var j = 0; j < angles.length; j++) {
+                    if (min > angles[j]) {
+                        min = angles[j];
+                        minIndex = index[j];
+                    }
+                }
+            }
+            else {
+                for (var j = 0; j < angles.length; j++) {
+                    if (min > angles[j] && angles[j] > 0) {
+                        min = angles[j];
+                        minIndex = index[j];
+                    }
+                }
+            }
+            return minIndex;
+        }
+        //寻找弧段另一头的结点
+        function nodeOtherSide(i, arc) {
+            if (arc.startNode == i)
+                return arc.endNode;
+            else if (arc.endNode == i)
+                return arc.startNode;
+        }
+        //构建拓扑
+        function buildTopology(nodes, arcs, polygons) {
+            //以某一结点为起点
+            for (var i = 0; i < nodes.length; i++) {
+                var firstArc = findMinAngle(0, nodes, i, arcs, 1);
+                //结点处弧段全部走过
+                if (firstArc == -1)
+                    continue;
+                var nextNode = nodeOtherSide(i, arcs[firstArc]);
+                var j = 0;
+                for (j = 0; j < nodes[nextNode].arcConnected.length; j++) {
+                    if (nodes[nextNode].arcConnected[j] == firstArc) {
+                        break;
+                    }
+                }
+                var nowAngle = nodes[nextNode].arcAngle[j];
+                var newPolygon = new Polygon();
+                var nextArc = -1;
+                newPolygon.ringArcs.push(firstArc);
+                //var startEnd = isStartEnd(i,arcs[firstArc]);
+                if (arcs[firstArc].startNode == i) {
+                    arcs[firstArc].direction1Passed = 1;
+                    newPolygon.direction.push(0);
+                }
+                else if (arcs[firstArc].endNode == i) {
+                    arcs[firstArc].direction2Passed = 1;
+                    newPolygon.direction.push(1);
+                }
+                //找下一条弧段，直到回到起点，然后回头
+                while (1) {
+                    nextArc = findMinAngle(nowAngle, nodes, nextNode, arcs, 0);
+                    //一个结点单独成环
+                    if (nextArc == -1) {
+                        polygons.push(newPolygon);
+                        if (arcs[firstArc].direction1Passed == 0) {
+                            arcs[firstArc].direction1Passed = 1;
+                            var newPolygon = new Polygon();
+                            newPolygon.ringArcs.push(firstArc);
+                            newPolygon.direction.push(0);
+                            polygons.push(newPolygon);
+                        }
+                        else if (arcs[firstArc].direction2Passed == 0) {
+                            arcs[firstArc].direction2Passed = 1;
+                            var newPolygon = new Polygon();
+                            newPolygon.ringArcs.push(firstArc);
+                            newPolygon.direction.push(1);
+                            polygons.push(newPolygon);
+                        }
+                        break;
+                    }
+                    //startEnd = isStartEnd(nextNode,arcs[nextArc]);
+                    if (arcs[nextArc].startNode == nextNode) {
+                        arcs[nextArc].direction1Passed = 1;
+                        newPolygon.direction.push(0);
+                    }
+                    else if (arcs[nextArc].endNode == nextNode) {
+                        arcs[nextArc].direction2Passed = 1;
+                        newPolygon.direction.push(1);
+                    }
+                    nextNode = nodeOtherSide(nextNode, arcs[nextArc]);
+                    for (var j = 0; j < nodes[nextNode].arcConnected.length; j++) {
+                        if (nodes[nextNode].arcConnected[j] == nextArc) {
+                            break;
+                        }
+                    }
+                    nowAngle = nodes[nextNode].arcAngle[j];
+                    newPolygon.ringArcs.push(nextArc);
+                    //回到起始结点
+                    if (nextNode == i) {
+                        //startEnd = isStartEnd(nextNode,arcs[nextArc]);
+                        polygons.push(newPolygon);
+                        var newPolygon = new Polygon();
+                        if ((arcs[nextArc].startNode == nextNode && arcs[nextArc].direction1Passed == 1) || (arcs[nextArc].endNode == nextNode && arcs[nextArc].direction2Passed == 1))
+                            break;
+                        if (arcs[nextArc].startNode == nextNode) {
+                            arcs[nextArc].direction1Passed = 1;
+                            newPolygon.direction.push(0);
+                        }
+                        else if (arcs[nextArc].endNode == nextNode) {
+                            arcs[nextArc].direction2Passed = 1;
+                            newPolygon.direction.push(1);
+                        }
+                        newPolygon.ringArcs.push(nextArc);
+                        nextNode = nodeOtherSide(nextNode, arcs[nextArc]);
+                        for (var j = 0; j < nodes[nextNode].arcConnected.length; j++) {
+                            if (nodes[nextNode].arcConnected[j] == nextArc) {
+                                break;
+                            }
+                        }
+                        nowAngle = nodes[nextNode].arcAngle[j];
+                    }
+                }
+            }
+            return polygons;
+        }
+        //计算单个多边形面积
+        function calSinglearea(x, y) {
+            var sum = 0;
+            for (var i = 1; i < x.length; i++) {
+                sum += (x[i % (x.length - 1)] * (y[(i + 1) % (x.length - 1)] - y[i - 1]));
+            }
+            return -sum / 2;
+        }
+        //计算面积
+        function calArea(arcs, polygons) {
+            for (var i = 0; i < polygons.length; i++) {
+                var x = [];
+                var y = [];
+                polygonToPoints(arcs, polygons[i], x, y);
+                polygons[i].area = calSinglearea(x, y);
+            }
+            return polygons;
+        }
+        //将多边形转为点
+        function polygonToPoints(arcs, polygon, x, y) {
+            for (var j = 0; j < polygon.ringArcs.length; j++) {
+                for (var k = 0; k < arcs[polygon.ringArcs[j]].middleNodes.length - 1; k++) {
+                    if (polygon.direction[j] == 0) {
+                        x.push(arcs[polygon.ringArcs[j]].middleNodes[k].x);
+                        y.push(arcs[polygon.ringArcs[j]].middleNodes[k].y);
+                    }
+                    else if (polygon.direction[j] == 1) {
+                        x.push(arcs[polygon.ringArcs[j]].middleNodes[arcs[polygon.ringArcs[j]].middleNodes.length - 1 - k].x);
+                        y.push(arcs[polygon.ringArcs[j]].middleNodes[arcs[polygon.ringArcs[j]].middleNodes.length - 1 - k].y);
+                    }
+                }
+            }
+            x.push(x[0]);
+            y.push(y[0]);
+        }
+        //判断是否是岛
+        function haveIsland(arcs, polygons) {
+            var plus = [];
+            var minus = [];
+            for (var i = 0; i < polygons.length; i++) {
+                if (polygons[i].area < 0) {
+                    minus.push(i);
+                }
+                else if (polygons[i].area > 0) {
+                    plus.push(i);
+                }
+            }
+            for (var i = 0; i < plus.length; i++) {
+                if (minus.length == 0)
+                    break;
+                for (var j = 0; j < minus.length; j++) {
+                    if (polygons[plus[i]].area <= -polygons[minus[j]].area)
+                        continue;
+                    plusArc = new Arc();
+                    minusArc = new Arc();
+                    x_plus = [];
+                    y_plus = [];
+                    x_minus = [];
+                    y_minus = [];
+                    polygonToPoints(arcs, polygons[plus[i]], x_plus, y_plus);
+                    polygonToPoints(arcs, polygons[minus[j]], x_minus, y_minus);
+                    for (var k = 0; k < x_plus.length; k++) {
+                        plusArc.middleNodes.push(new Node(x_plus[k], y_plus[k]));
+                    }
+                    for (var k = 0; k < x_minus.length; k++) {
+                        minusArc.middleNodes.push(new Node(x_minus[k], y_minus[k]));
+                    }
+                    if (!rectangleCross(plusArc, minusArc))
+                        continue;
+                    var count = 0;
+                    var flag = 1;
+                    for (var k = 0; k < x_minus.length; k++) {
+                        var count = 0;
+                        for (var a = 0; a < x_plus.length - 1; a++) {
+                            if (isCross(x_plus[a], y_plus[a], x_plus[a + 1], y_plus[a + 1], 0, y_minus[k], x_minus[k], y_minus[k]) != undefined)
+                                count++;
+                        }
+                        if (count % 2 == 0) {
+                            flag = 0;
+                            break;
+                        }
+                    }
+                    if (flag == 0)
+                        continue;
+                    else {
+                        polygons[minus[j]].isIsland = 1;
+                        polygons[plus[i]].island.push(minus[j]);
+                    }
+                }
+            }
+            return polygons;
+        }
+        //添加左右多边形信息
+        function rightLeftPolygon(arcs, polygons) {
+            for (var i = 0; i < polygons.length; i++) {
+                for (var j = 0; j < polygons[i].direction.length; j++) {
+                    if (polygons[i].direction[j] == 0) {
+                        arcs[polygons[i].ringArcs[j]].rightPolygon = i;
+                    }
+                    else if (polygons[i].direction[j] == 1) {
+                        arcs[polygons[i].ringArcs[j]].leftPolygon = i;
+                    }
+                }
+            }
+            return arcs;
+        }
+        function ZoomToCenter(lines) {
+            var latmax = Number(lines[1].split(",")[1]);
+            var lonmax = Number(lines[1].split(",")[0]);
+            var latmin = Number(lines[1].split(",")[1]);
+            var lonmin = Number(lines[1].split(",")[0]);
+            for (var i = 2; i < lines.length - 1; i++) {
+                if (lines[i].split(",")[1] == undefined && i != lines.length - 2) {
+                    i += 1;
+                }
+                else {
+                    if (Number(lines[i].split(",")[0]) > lonmax)
+                        lonmax = Number(lines[i].split(",")[0]);
+                    if (Number(lines[i].split(",")[0]) < lonmin)
+                        lonmin = Number(lines[i].split(",")[0]);
+                    if (Number(lines[i].split(",")[1]) > latmax)
+                        latmax = Number(lines[i].split(",")[1]);
+                    if (Number(lines[i].split(",")[1]) < latmin)
+                        latmin = Number(lines[i].split(",")[1]);
+                }
+            }
+            var scale = 450 / Math.max(lonmax - lonmin, latmax - latmin);
+            var XOffsize = latmax + 20 / scale;
+            var YOffsize = lonmin - 20 / scale;
+            return { a1: scale, b1: XOffsize, c1: YOffsize };
+        }
+        //创建栅格矩阵
+        function createMatrix(martix, arcs) {
+            var arcX = new Array();
+            var arcY = new Array();
+            for (var i = 0; i < arcs.length; i++) {
+                for (var j = 0; j < arcs[i].middleNodes.length; j++) {
+                    arcX.push(arcs[i].middleNodes[j].x);
+                    arcY.push(arcs[i].middleNodes[j].y);
+                }
+            }
+            var bottom = parseInt(Math.min.apply(null, arcY));
+            var left = parseInt(Math.min.apply(null, arcX));
+            var top = Math.ceil(Math.max.apply(null, arcY));
+            var right = Math.ceil(Math.max.apply(null, arcX));
+            for (var i = 0; i < top - bottom + 1; i++) {
+                var tempMatrix = new Array();
+                for (var j = 0; j < right - left + 1; j++) {
+                    tempMatrix[j] = 0;
+                }
+                martix.push(tempMatrix);
+            }
+            return [bottom, left];
+        }
+        //进行矢栅转换
+        function toRaster(matrix, nodes, arcs, polygons, bottom, left) {
+            area = 0;
+            index = 0;
+            for (var i = 0; i < polygons.length; i++) {
+                if (polygons[i].area < area) {
+                    area = polygons[i].area;
+                    index = i;
+                }
+            }
+            for (var i = 0; i < arcs.length; i++) {
+                var leftP = arcs[i].leftPolygon;
+                var rightP = arcs[i].rightPolygon;
+                if (leftP == index) leftP = 0;
+                else if (leftP < index) leftP += 1
+                if (rightP == index) rightP = 0;
+                if (rightP < index) rightP += 1;
+                for (var j = 0; j < arcs[i].middleNodes.length - 1; j++) {
+                    var startX = arcs[i].middleNodes[j].x;
+                    var startY = arcs[i].middleNodes[j].y;
+                    var endX = arcs[i].middleNodes[j + 1].x;
+                    var endY = arcs[i].middleNodes[j + 1].y;
+                    var ymin = Math.ceil(Math.min(startY, endY));
+                    var y = ymin;
+                    if (startY < endY) {
+                        while (y < Math.max(startY, endY)) {
+                            var x = parseInt((y - startY) * (endX - startX) / (endY - startY) + startX);
+                            for (var a = 0; a < x - left; a++) {
+                                matrix[y - bottom][a] += leftP - rightP;
+                            }
+                            y += 1;
+                        }
+                    }
+                    else if (startY > endY) {
+                        while (y < Math.max(startY, endY)) {
+                            var x = parseInt((y - startY) * (endX - startX) / (endY - startY) + startX);
+                            for (a = 0; a < x - left; a++) {
+                                matrix[y - bottom][a] += rightP - leftP;
+                            }
+                            y += 1;
+                        }
+                    }
+                }
+            }
+            for (var i = 0; i < polygons.length; i++) {
+                if (polygons[i].area < 0) {
+                    for (var j = 0; j < polygons[i].ringArcs.length; j++) {
+                        for (var k = 0; k < polygons[i].ringArcs[j].length; k++) {
+                            var startX = polygons[i].ringArcs[j].middleNodes[k].x;
+                            var startY = polygons[i].ringArcs[j].middleNodes[k].y;
+                            var endX = polygons[i].ringArcs[j].middleNodes[k + 1].x;
+                            var endY = polygons[i].ringArcs[j].middleNodes[k + 1].y;
+                            var ymin = Math.ceil(Math.min(startY, endY));
+                            var y = ymin;
+                            if (startY < endY) {
+                                while (y < Math.max(startY, endY)) {
+                                    var x = parseInt((y - startY) * (endX - startX) / (endY - startY) + startX);
+                                    for (var a = 0; a < x - left; a++) {
+                                        matrix[y - bottom][a] += rightP - leftP;
+                                    }
+                                    y += 1;
+                                }
+                            }
+                            else if (startY > endY) {
+                                while (y < Math.max(startY, endY)) {
+                                    var x = parseInt((y - startY) * (endX - startX) / (endY - startY) + startX);
+                                    for (a = 0; a < x - left; a++) {
+                                        matrix[y - bottom][a] += leftP - rightP;
+                                    }
+                                    y += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return matrix;
+        }
+        //读取gen文件
+        function readGen(file) {
+            var file = document.getElementById("file").files[0];
+            var reader = new FileReader();
+            reader.readAsText(file);
+            reader.onload = function (e) {
+                var lines = new Array();
+                var str = "";
+                str += reader.result;
+                str = str.trim();
+                lines = str.split("\r\n");
+                scale = ZoomToCenter(lines).a1;
+                XOffsize = ZoomToCenter(lines).b1;
+                YOffsize = ZoomToCenter(lines).c1;
+                var mycanvas = document.getElementById("canvas");
+                mycanvas.setAttribute("width", "800px");
+                mycanvas.setAttribute("height", "500px");
+                var mycanvas1 = document.getElementById("canvas1");
+                mycanvas1.setAttribute("width", "800px");
+                mycanvas1.setAttribute("height", "500px");
+                var context = mycanvas.getContext("2d");
+                var context1 = mycanvas1.getContext("2d");
+                var nodes = new Array();
+                var arcs = new Array();
+                var polygons = new Array();
+                var matrix = new Array();
+                arcs = readArcs(lines, arcs);
+                //arcs = breakSelfCross(arcs);
+                //arcs = breakArcs(arcs);
+                //arcs = clearPseudoNode(arcs);
+                nodes = getNodeInfo(arcs);
+                arcs = addStartEnd(nodes, arcs);
+                nodes = calNodesAngle(nodes, arcs);
+                polygons = buildTopology(nodes, arcs, polygons);
+                polygons = calArea(arcs, polygons);
+                polygons = haveIsland(arcs, polygons);
+                arcs = rightLeftPolygon(arcs, polygons);
+                var matrixBottom = undefined;
+                var matrixLeft = undefined;
+                [matrixBottom, matrixLeft] = createMatrix(matrix, arcs);
+                matrix = toRaster(matrix, nodes, arcs, polygons, matrixBottom, matrixLeft);
+                for (var i = 0; i < arcs.length; i++) {
+                    context.beginPath();
+                    context.moveTo(scale * (arcs[i].middleNodes[0].x - YOffsize), scale * (XOffsize - arcs[i].middleNodes[0].y));
+                    for (var j = 1; j < arcs[i].middleNodes.length; j++) {
+                        context.lineTo(scale * (arcs[i].middleNodes[j].x - YOffsize), scale * (XOffsize - arcs[i].middleNodes[j].y));
+                    }
+                    context.stroke();
+                }
+                var color = [];
+                color[0] = "white";
+                for (var i = 0; i < matrix.length; i++) {
+                    for (var j = 0; j < matrix[0].length; j++) {
+                        if (color[matrix[matrix.length - 1 - i][j]] == undefined) {
+                            color[matrix[matrix.length - 1 - i][j]] = "#" + Math.floor(Math.random() * 16777215).toString(16);
+                        }
+                        context1.fillStyle = color[matrix[matrix.length - 1 - i][j]];
+                        context1.strokeStyle = "black";
+                        context1.strokeRect(scale * j, scale * i, scale, scale);
+                        context1.fillRect(scale * j, scale * i, scale, scale);
+                    }
+                }
+                var table = document.getElementById("matrix");
+                for (var i = 0; i < matrix.length; i++) {
+                    var trNode = table.insertRow();
+                    for (var j = 0; j < matrix[0].length; j++) {
+                        var tdNode = trNode.insertCell();
+                        tdNode.innerHTML = matrix[matrix.length - 1 - i][j];
+                    }
+                }
+            }
+        }
+    </script>
+</body>
 
-                      symmetryy();
-                      sorting(tran);
-                  }
-              }
-              //提取数字，并存入数组
-              function digitalExtraction(str,number){
-                  var heap= str.replace(/[^0-9.eEND-]/ig,"A");
-                  heap= heap.replace(/[^0-9.eA-]/ig,"L");
-
-                  var numcharacter="";//存储数字字符
-                  var number =new Array();//提取数字数组
-                  var i=0;
-                  var flag=1;//heap字符串当前标记
-                  var n=0;//标识数字与字符转换位置
-                  var character=heap[flag];//获取字符串的一个字符
-                  var numline=1;//记录当前为第几条线
-                  var isend=0;
-                  number[i++]=-1;
-                 // document.write(heap);
-                  while(character!=null){
-                      if(character=="L"){//一条线段结束
-                          isend=1;
-                          numline++;
-                          number[i++]=-1;
-                      }
-                      if(numline<10 && isend){//单位数线段
-                          flag+=4;
-                          character=heap[flag];
-                          isend=0;
-                      }
-                      if(9<numline<100 && isend){//两位数线段
-                          flag+=5;
-                          character=heap[flag];
-                          isend=0;
-                      }
-                      if(character!="A"){
-                          n=1;
-                          numcharacter+=character;
-                      }else{ 
-                          if(n){
-                              number[i++]=parseFloat(numcharacter);//将一连串的数字转换为数字
-                              numcharacter="";//存储数字字符重新归空
-                              n=0;
-                          }
-                      }
-                      character=heap[++flag];
-                  }   
-                  return number;
-              }
-              //数据分拣工作，结点弧段数据整理
-              function sorting(num){
-                  var x,y;//点坐标
-                  var a=-1;//当前点所在的弧段
-                  var count=0;//结点数
-                  var flag=false;
-                  var c,d;
-                  //var position;
-                  for(var i=0;i<num.length;i++){
-                      if(isNaN(num[i])){
-                          continue;
-                      }
-                      else if(num[i]!=-1){      
-                          x=num[i];
-                          y=num[++i];
-
-                          //查看结点是否重复出现
-                          for(var j=0;j<node.length;j++){
-                              c=(node[j].x==x);
-                              d=(node[j].y==y);
-                              if(c && d){//有重复点
-                                  node[j].seg.push(a);
-                                  segmt[a].nd.push(j);
-                                  flag=true;
-                                  break;
-                              }
-                          }
-                          //if(node.indexOf(x)>=0 && node.x.indexOf(y)>=0){//重复点
-                          //    positon=node.indexOf(x);
-                           //   node.seg[position].push(a);
-                         // }else{
-                          if(!flag){//无重复点
-                              var nodeseg=new Array();//结点弧段的弧段表
-                              nodeseg.push(a);
-                              var nodept=new point(x,y,nodeseg);
-                              node.push(nodept);
-                              segmt[a].nd.push(count++);
-                          }else{
-                              flag=false;
-                          }
-                          
-                          //segmt[a].nd.push(count++);
-
-                      }else{
-                          a++; 
-                          var jd=new Array();
-                          var hd=new segment(a,jd); 
-                          segmt.push(hd);
-                      }                 
-                  }
-                  segmt.pop();
-                  segmt.pop();
-              } 
-              //左转算法
-              function zuozhuan()
-              {
-                  var startnode;//弧段起始结点
-                  var arc=0;//当前弧段
-                  var position;//结点号
-                  var dw=0;
-                  var x=new Array();
-                  var y=new Array();
-
-
-                  for(var i=0;i<node.length;i++){
-                      startnode=i;
-
-                      for(var k=0;k<node[i].seg.length;k++){
-                          arc=node[i].seg[k];
-                          if(segmt[arc].frequency<2)
-                              break
-                          
-                      }
-
-                      if(segmt[arc].frequency>=2 || node[i].seg.length==1){
-                              continue;
-                      }
-                      while(arc!=-999){
-                          segmt[arc].frequency++;//使用过一次
-                          
-                          if(segmt[arc].frequency>2){
-                              break;
-                          }
-                          //存储当前所在弧段的坐标点
-                          for(var j=0;j<segmt[arc].nd.length;j++){
-                              if(segmt[arc].direction){
-                                  position=segmt[arc].nd[segmt[arc].nd.length-j-1];
-                                  x.push(node[position].x);
-                                  y.push(node[position].y);
-                              }else{
-                                  position=segmt[arc].nd[j];
-                                  x.push(node[position].x);
-                                  y.push(node[position].y);
-                              }
-                              
-                              if(x.length!=1 && node[position].x==x[0] && node[position].y==y[0]){
-                                  draw(x,y)//todo  绘制
-                                  dw=1;
-                                  break;
-                              }
-                          }
-
-
-                          startnode=position;//更换结点
-                          if(segmt[arc].direction){
-                              segmt[arc].direction=0;//弧段设为反方向
-                          }else{
-                              segmt[arc].direction=1;//弧段设为反方向
-                          }
-                          //segmt[arc].direction=1;//弧段设为反方向
-
-                          if(dw){
-                              dw=0;
-                              x=[];
-                              y=[];
-                              continue;
-                          }else{//一个多边形未画完
-                              arc=angle(arc,position);//查找角度最小的弧段
-                          }
-                          
-                      }
-                      
-
-                      
-                  }
-              }
-              //寻找夹角最小的弧段
-              function angle(arc,position){
-                  var x,y,x1,y1,x2,y2,x3,y3,x4,y4,xx1,xx2;
-                  var pt;//结点号
-                  var ac;//弧段号
-                  var dnum,dx,dy;//方向x,y,判断方向用
-                  var ag=-2;//角度
-                  var reag;
-                  var id=-999;
-                  var flag=-1;
-                  xx1=0;
-                  x1=node[position].x;
-                  y1=node[position].y;
-                  if(segmt[arc].direction){//逆
-                      dnum=segmt[arc].nd[segmt[arc].nd.length-2];//第二个弧段的最后一个结点号
-                      x2=node[dnum].x;
-                      y2=node[dnum].y;
-                  }else{
-                      dnum=segmt[arc].nd[1];//第二个弧段的最后一个结点号
-                      x2=node[dnum].x;
-                      y2=node[dnum].y;
-                  }
-                  x=(x2-x1);   y=(y2-y1);
-                  
-                  for(var i=0;i<node[position].seg.length;i++){
-                      ac=node[position].seg[i];
-                      if(segmt[ac].frequency>2 || ac==arc){
-                          continue;
-                      }
-                      dnum=segmt[ac].nd[segmt[ac].nd.length-1];//第二个弧段的最后一个结点号
-                      dx=node[dnum].x;
-                      dy=node[dnum].y;
-                      if(dx==x1 && dy==y1){//最后一个
-                          //if(segmt[ac].direction){
-                            //  segmt[ac].direction=0;
-                          //}else{
-                              segmt[ac].direction=1;
-                          //}
-                          //segmt[ac].direction=1;
-                          dnum=segmt[ac].nd[segmt[ac].nd.length-2];//第二个弧段的最后一个结点号
-                          x3=node[dnum].x;
-                          y3=node[dnum].y;
-                      }else{
-                          segmt[ac].direction=0;
-                          dnum=segmt[ac].nd[1];//第二个弧段的最后一个结点号
-                          x3=node[dnum].x;
-                          y3=node[dnum].y;
-                      }
-                      x4=(x3-x1);   y4=(y3-y1);
-                      reag=(x*y4+y*x4)/(Math.sqrt(x*x+y*y)*Math.sqrt(x4*x4+y4*y4));
-                      xx2=x*y4-x4*y;
-
-                      if(flag==-1){
-                          flag=1;
-                          id=ac;
-                      }
-                      if(flag==1){
-                          //xx2=x*y4-x4*y;
-                          if(xx2<=xx1){
-                              xx1=xx2;
-                              ag=reag;
-                              id=ac;  
-                          }                       
-                      }
-                  }
-
-                  return id;
-              }
-              //绘制
-              function draw(x,y){
-                  var canvas=document.getElementById("myCanvas");
-                  var cxt=canvas.getContext('2d'); 
-                  cxt.lineWidth = 2;
-                  cxt.strokeStyle = "#0000ff"; 
-                 // ctx.fillStyle = 'rgba(255,0,0,.3)';                  
-                 var a;
-                 var b;
-                 var length;
-                  var len=x.length;
-                  cxt.beginPath(); 
-                  cxt.moveTo(x[0],y[0]-200);
-                  for(var i=1;i<len;i++){
-                      //cxt.lineTo(x[i],y[i]-200);
-                      cxt.fillRect(x[i],y[i]-200,2,2);
-                      a=(x[i]+x[i-1])/2;
-                      b=(y[i]-200+y[i-1]-200)/2;
-                      length=Math.pow(((a-x[i-1])*(a-x[i-1]) + (b-y[i-1]+200) * (b-y[i-1])+200), 0.5);
-                      while(length>2.82){
-                      cxt.fillRect(a,b,2,2);
-                      a=(a+x[i-1])/2;
-                      b=(b+y[i-1])/2;
-                      length=Math.pow(((a-x[i-1])*(a-x[i-1]) + (b-y[i-1]+200) * (b-y[i-1])+200), 0.5);
-                      }
-                  }
-                  cxt.stroke();     
-                 // ctx.fill();
-
-              }
-              //变换
-               function symmetryy(){
-                  var numbersymmetryy = new Array();
-                  numbersymmetryy=tran.slice(0);
-                  var x,y;
-                  var sb=new Array();
-                 
-                  sb=outsourcing(numbersymmetryy);
-
-                  //地图
-                  for(var i=1;i<numbersymmetryy.length;i++){
-                      if(numbersymmetryy[i]!=-1){
-                          y=numbersymmetryy[++i];
-                          y-=sb[1];
-                          numbersymmetryy[i]=-y;
-                          numbersymmetryy[i]+=sb[1];
-                      }else{
-                          i++;
-                      }
-                  }
-
-                  for(var i=1;i<numbersymmetryy.length;i++){
-                      if(numbersymmetryy[i]!=-1){
-                          numbersymmetryy[i]*=3;   
-                      }else{
-                          i++;
-                      }
-                  }
-                  tran=numbersymmetryy.slice(0);
-              }
-              //当前图形中心求解
-              function outsourcing(arr){
-                  var xs,ys,xb,yb;
-                  var xm,ym;
-                  var sb=new Array();
-                  xb=arr[1];
-                  yb=arr[2];
-                  xs=arr[1];
-                  ys=arr[2];
-                  for(var i=3;i<arr.length;i++){
-                      if(arr[i]!=-1){
-                          if(xb<arr[i]){
-                              xb=arr[i];
-                          }
-                          if(xs>arr[i]){
-                              xs=arr[i];
-                          }
-                          if(yb<arr[++i]){
-                              yb=arr[i];
-                          }
-                          if(ys>arr[i]){
-                              ys=arr[i];
-                          }
-                      }else{//跳过线条序号
-                          i++;
-                      }
-                  }
-                  xm=(xs+xb)/2;
-                  ym=(ys+yb)/2;
-                  sb[0]=xm;
-                  sb[1]=ym;
-
-                  return sb;
-              }
-         
-          </script>
-      </body>
-  </html>
-</Doctype> 
+</html>
