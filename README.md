@@ -12,3 +12,4 @@
 #### [四叉树](https://legolee.github.io/myapp/public/四叉树.html)
 #### [构建多边形](https://legolee.github.io/myapp/public/构建多边形.html)
 #### [地图符号](https://legolee.github.io/myapp/public/地图符号.html)
+#### [矢量转栅格](https://legolee.github.io/myapp/public/矢量转栅格.html)
